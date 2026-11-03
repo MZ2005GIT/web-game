@@ -1,40 +1,68 @@
 import { supabase } from "./supabase.js";
 
 const signupForm = document.getElementById("signupForm");
+const loginForm = document.getElementById("loginForm");
 const message = document.getElementById("message");
 
-signupForm.addEventListener("submit", async (event) => {
+if (signupForm) 
+{
+    signupForm.addEventListener("submit", async (event) => {
 
-    event.preventDefault();
+        event.preventDefault();
 
-    const username = document.getElementById("username").value;
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+        const username = document.getElementById("username").value;
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
 
-    message.textContent = "Creating account...";
+        message.textContent = "Creating account...";
 
-    const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
 
-        email: email,
-        password: password,
+            email: email,
+            password: password,
 
-        options: {
-            data: {
-                username: username
+            options: {
+                data: {
+                    username: username
+                }
             }
+
+        });
+
+        if (error) {
+            message.textContent = error.message;
+            return;
+        }
+
+        if (data.session) {
+            message.textContent = "Account created successfully!";
+        } else {
+            message.textContent = "Check your email to confirm your account!";
         }
 
     });
+}
 
-    if (error) {
-        message.textContent = error.message;
-        return;
-    }
+if (loginForm) {
+    loginForm.addEventListener("submit", async (event) => {
 
-    if (data.session) {
-        message.textContent = "Account created successfully!";
-    } else {
-        message.textContent = "Check your email to confirm your account!";
-    }
+        event.preventDefault();
 
-});
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        message.textContent = "Logging in...";
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+
+        if (error) {
+            message.textContent = error.message;
+            return;
+        }
+
+        message.textContent = "Login successful!";
+    });
+}
