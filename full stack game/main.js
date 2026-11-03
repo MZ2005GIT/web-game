@@ -24,3 +24,24 @@ if (data.session) {
     console.log("User is not logged in!");
     window.location.href = "signup.html";
 }
+
+const logoutButton = document.getElementById("logoutButton");
+
+if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+
+        const { error } = await supabase.auth.signOut();
+
+        if (error) {
+            console.log("Logout error:", error.message);
+            return;
+        }
+
+        clearCurrentUser();
+
+        console.log("Logged out successfully!");
+
+        window.location.href = "login.html";
+
+    });
+}
