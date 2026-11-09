@@ -1,26 +1,9 @@
 import { supabase } from "./supabase.js";
-import { currentUser, currentProfile, setCurrentProfile, setCurrentUser, clearCurrentUser } from "./user.js";
+import { initializeUser, currentUser, currentProfile, clearCurrentUser } from "./user.js";
 
-const { data, error } = await supabase.auth.getSession();
+const loggedIn = await initializeUser();
 
-if (data.session) {
-    setCurrentUser(data.session.user);
-
-    const { data: profile, error: dataError } = await supabase
-    .from("profiles")
-    .select("username")
-    .eq("id", currentUser.id)
-    .single();
-
-    console.log("User is logged in!");
-    if (dataError) {
-        console.log("Error fetching profile:", dataError.message);
-    } else {
-        setCurrentProfile(profile)
-        console.log("Username:", currentProfile.username);
-    }
-} else {
-    console.log("User is not logged in!");
+if (!loggedIn) {
     window.location.href = "signup.html";
 }
 

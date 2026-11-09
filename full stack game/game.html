@@ -8,12 +8,20 @@
     <title>My Game</title>
 
     <link rel="stylesheet" href="css/style.css">
+
+    <script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+          "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+        }
+			}
+		</script>
 </head>
 
 <body>
     <button id="exitButton">Exit</button>
-    <button id="startWaveButton">Start Wave</button>
-    <button id="restartButton">Restart</button>
+    <button id="startButton">Start</button>
     
     <script type="module" src="game.js"></script>
 </body>
