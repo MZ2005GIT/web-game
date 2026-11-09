@@ -12,6 +12,7 @@ const maxLevels = 100;
 let currentEnemies = 1;
 let currentEnemySpeed = 1;
 let currentShootingSpeed = 0.8; //secs
+let currentBullletPace = 0.8;
 let currentBullets = 10
 const enemyHealth = 5;
 
