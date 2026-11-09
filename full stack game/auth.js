@@ -36,6 +36,7 @@ if (signupForm)
 
         if (data.session) {
             message.textContent = "Account created successfully!";
+            window.location.href = "index.html";
         } else {
             message.textContent = "Check your email to confirm your account!";
         }
@@ -64,5 +65,6 @@ if (loginForm) {
         }
 
         message.textContent = "Login successful!";
+        window.location.href = "index.html";
     });
 }

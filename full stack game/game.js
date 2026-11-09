@@ -1,5 +1,29 @@
 import * as THREE from "three";
 import { OrbitControls } from "jsm/controls/OrbitControls.js";
+import { currentUser, currentProfile } from "./user.js";
+
+if (!currentProfile || !currentUser) {
+    console.log("Error fetching profile");
+    window.location.href = "login.html"
+}
+
+let currentLevel = currentProfile.wave;
+const maxLevels = 100;
+let currentEnemies = 1;
+let currentEnemySpeed = 1;
+let currentShootingSpeed = 0.8; //secs
+let currentBullets = 10
+const enemyHealth = 5;
+
+if (currentLevel <= 25) {
+    currentEnemies = currentLevel * 2;
+} else if (currentLevel > 25 && currentLevel <= 50) {
+    currentEnemies = 25 + Math.round(currentLevel * 1.7);
+    currentEnemySpeed = 1.5;
+} else if (currentLevel > 50 && currentLevel <= 100) {
+    currentEnemies = 50 + Math.round(currentLevel * 1.4);
+    currentEnemySpeed = 2;
+}
 
 const scene = new THREE.Scene();
 
@@ -31,7 +55,7 @@ directionalLight.position.set(5, 10, 5);
 
 scene.add(directionalLight);
 
-const groundGeometry = new THREE.BoxGeometry(12, 2, 10, 12, 1, 10);
+const groundGeometry = new THREE.BoxGeometry(100, 2, 100, 100, 1, 100);
 
 const groundMaterial = new THREE.MeshStandardMaterial({color: 0x228b22});
 
@@ -44,8 +68,6 @@ scene.add(ground);
 const mouse = new THREE.Vector2();
 
 const raycaster = new THREE.Raycaster();
-
-let blockColor = new THREE.Color();
 
 const keys = {};
 
@@ -136,25 +158,6 @@ function snapToGrid(point, height)
     return new THREE.Vector3(x, y, z);
 }
 
-function createBlock(position)
-{
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-
-    const material = new THREE.MeshStandardMaterial({
-        color: 0x8B4513
-    });
-
-    const block = new THREE.Mesh(geometry, material);
-
-    block.material.color.set(blockColor);
-
-    block.position.copy(position);
-
-    scene.add(block);
-
-    blocks.push(block);
-}
-
 let previousTime;
 
 function animate(currentTime)
@@ -169,8 +172,6 @@ function animate(currentTime)
     const deltaTime = (currentTime - previousTime) / 1000;
 
     previousTime = currentTime;
-
-    setColor();
 
     controls.update();
 
