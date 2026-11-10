@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { initializeUser, currentUser, currentProfile } from "./user.js";
+import { initializeUser, getBestTime, saveBestTime } from "./user.js";
 
 const loggedIn = await initializeUser();
 
@@ -14,8 +14,47 @@ const gameOverScreen = document.getElementById("gameOverScreen");
 const startButton = document.getElementById("startButton");
 const pauseButton = document.getElementById("pauseButton");
 const resumeButton = document.getElementById("resumeButton");
+const restartButton = document.getElementById("restartButton");
+
+const finalTimeElement = document.getElementById("finalTime");
+
+const bestTimeElementStart = document.getElementById("bestTimeStart");
+const bestTimeElementEnd = document.getElementById("bestTimeEnd");
+
+async function updateBestTime()
+{
+    const bestTime = await getBestTime();
+
+    console.log("Fetched best time:", bestTime);
+    console.log("Start element:", bestTimeElementStart);
+    console.log("End element:", bestTimeElementEnd);
+
+    if (bestTimeElementStart) {
+        bestTimeElementStart.textContent = bestTime;
+    }
+
+    if (bestTimeElementEnd) {
+        bestTimeElementEnd.textContent = bestTime;
+    }
+}
+
+await updateBestTime();
 
 let gameState = "menu";
+
+let boatHealth = 20;
+
+const maxHealth = 100;
+
+let survivalTime = 0;
+
+let obstacleSpawnTimer = 0;
+
+let nextObstacleSpawn = THREE.MathUtils.randFloat(1.5, 3.5);
+
+let obstacles = [];
+
+const timerElement = document.getElementById("timer");
 
 function updateGameUI()
 {
@@ -45,6 +84,39 @@ startButton.addEventListener("click", function()
 
     previousTime = undefined;
 
+    survivalTime = 0;
+
+    obstacleSpawnTimer = 0;
+
+    nextObstacleSpawn = THREE.MathUtils.randFloat(1.5, 3.5);
+
+    boatHealth = maxHealth;
+
+    updateHealthBar();
+    
+    timerElement.textContent = 0;
+
+    updateGameUI();
+});
+
+restartButton.addEventListener("click", function()
+{
+    gameState = "playing";
+
+    previousTime = undefined;
+
+    survivalTime = 0;
+
+    obstacleSpawnTimer = 0;
+
+    nextObstacleSpawn = THREE.MathUtils.randFloat(1.5, 3.5);
+
+    boatHealth = maxHealth;
+
+    updateHealthBar();
+    
+    timerElement.textContent = 0;
+
     updateGameUI();
 });
 
@@ -71,13 +143,28 @@ resumeButton.addEventListener("click", function()
     updateGameUI();
 });
 
-const timerElement = document.getElementById("timer");
+async function endGame()
+{
+    if (gameState !== "playing") return;
 
-let survivalTime = 0;
+    gameState = "gameOver";
 
-let boatHealth = 100;
+    previousTime = undefined;
 
-const maxHealth = 100;
+    finalTimeElement.textContent = Math.floor(survivalTime);
+
+    for (let obstacle of obstacles) {
+        scene.remove(obstacle);
+    }
+
+    obstacles = [];
+
+    updateGameUI();
+
+    await saveBestTime(survivalTime);
+
+    await updateBestTime();
+}
 
 const scene = new THREE.Scene();
 
@@ -174,8 +261,6 @@ boat.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
 
 scene.add(boat);
 
-const obstacles = [];
-
 function createObstacle()
 {
     const geometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 5);
@@ -186,7 +271,7 @@ function createObstacle()
 
     const obstacle = new THREE.Mesh(geometry, material);
 
-    obstacle.position.x = THREE.MathUtils.randFloat(-8, 8);
+    obstacle.position.x = THREE.MathUtils.randFloat(-11, 11);
     obstacle.position.y = 0.1;
     obstacle.position.z = -19;
 
@@ -201,6 +286,20 @@ function createObstacle()
     scene.add(obstacle);
 
     obstacles.push(obstacle);
+}
+
+function updateObstacleSpawning(deltaTime)
+{
+    obstacleSpawnTimer += deltaTime;
+
+    if (obstacleSpawnTimer >= nextObstacleSpawn)
+    {
+        createObstacle();
+
+        obstacleSpawnTimer = 0;
+
+        nextObstacleSpawn = THREE.MathUtils.randFloat(1.5, 3.5);
+    }
 }
 
 function updateObstacles(deltaTime)
@@ -250,8 +349,7 @@ function checkCollisions()
             obstacles.splice(obstacles.indexOf(obstacle), 1);
 
             if (boatHealth <= 0) {
-                gameState = "gameOver";
-                updateGameUI();
+                endGame();
             }
 
             break;
@@ -320,13 +418,13 @@ function moveBoat(deltaTime)
 
     boat.position.addScaledVector(direction, speed * deltaTime);
 
-    boat.position.x = THREE.MathUtils.clamp(boat.position.x, -9, 9);
+    boat.position.x = THREE.MathUtils.clamp(boat.position.x, -11, 11);
 
     boat.position.z = THREE.MathUtils.clamp(boat.position.z, -17, 8);
 
-    boat.userData.phase += 2 * deltaTime;
+    boat.userData.phase += 4 * deltaTime;
 
-    boat.position.y = boat.userData.startY + Math.sin(boat.userData.phase) * 0.3;
+    boat.position.y = boat.userData.startY + Math.sin(boat.userData.phase) * 0.2;
 }
 
 function moveWorld(deltaTime) {
@@ -371,9 +469,15 @@ function animate(currentTime)
 
         moveBoat(deltaTime);
 
+        updateObstacleSpawning(deltaTime);
+
         updateObstacles(deltaTime);
 
         checkCollisions();
+
+        survivalTime += deltaTime;
+
+        timerElement.textContent = Math.floor(survivalTime);
     }
 
     renderer.render(scene, camera);
