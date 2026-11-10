@@ -261,7 +261,62 @@ boat.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
 
 scene.add(boat);
 
-function createObstacle()
+function createEnemy()
+{
+    const enemy = new THREE.Group();
+
+    const bodyGeometry = new THREE.BoxGeometry(0.7, 0.9, 0.4);
+
+    const bodyMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff0000
+    });
+
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+
+    body.position.y = 0.9;
+
+    enemy.add(body);
+
+    // Head
+    const headGeometry = new THREE.SphereGeometry(0.35, 8, 6);
+
+    const headMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffcc99
+    });
+
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+
+    head.position.set(0, 1.55, 0);
+
+    enemy.add(head);
+
+    // Arms
+    const armGeometry = new THREE.BoxGeometry(0.2, 0.65, 0.2);
+
+    const armMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffcc99
+    });
+
+    // Left arm
+    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+
+    leftArm.position.set(-0.45, 0.95, 0.1);
+    leftArm.rotation.z = -0.5;
+
+    enemy.add(leftArm);
+
+    // Right arm
+    const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+
+    rightArm.position.set(0.45, 0.95, 0.1);
+    rightArm.rotation.z = 0.5;
+
+    enemy.add(rightArm);
+
+    return enemy;
+}
+
+function createLog()
 {
     const geometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 5);
 
@@ -269,23 +324,65 @@ function createObstacle()
         color: 0x654321
     });
 
-    const obstacle = new THREE.Mesh(geometry, material);
+    const log = new THREE.Mesh(geometry, material);
 
-    obstacle.position.x = THREE.MathUtils.randFloat(-11, 11);
-    obstacle.position.y = 0.1;
-    obstacle.position.z = -19;
+    log.position.x = THREE.MathUtils.randFloat(-11, 11);
+    log.position.y = 0.1;
+    log.position.z = -19;
 
-    obstacle.rotation.z = THREE.MathUtils.randFloat(1.5, 2.5);
-    obstacle.rotation.y = THREE.MathUtils.randFloat(0, 2);
+    log.rotation.z = THREE.MathUtils.randFloat(1.5, 2.5);
+    log.rotation.y = THREE.MathUtils.randFloat(0, 2);
 
-    obstacle.userData.startRotation = obstacle.rotation.z;
-    obstacle.userData.startY = obstacle.position.y;
-    obstacle.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
-    obstacle.userData.boundingBox = new THREE.Box3();
+    log.userData.startRotation = log.rotation.z;
+    log.userData.startY = log.position.y;
+    log.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
+    log.userData.boundingBox = new THREE.Box3();
+    log.userData.hasEnemy = false;
 
-    scene.add(obstacle);
+    scene.add(log);
 
-    obstacles.push(obstacle);
+    obstacles.push(log);
+
+    return log;
+}
+
+function createEnemyLog()
+{
+    const log = createLog();
+
+    const enemy = createEnemy();
+
+    log.userData.hasEnemy = true;
+
+    log.userData.enemy = enemy;
+
+    log.userData.health = 50;
+
+    log.userData.shootTimer = 0;
+    
+    log.userData.shootInterval = 2;
+
+    enemy.position.y = 1.5;
+
+    log.add(enemy);
+
+    enemy.rotation.z = -log.rotation.z;
+
+    return log;
+}
+
+function spawnObstacle()
+{
+    const chance = Math.random();
+
+    if (chance < 0.6)
+    {
+        createLog();
+    }
+    else
+    {
+        createEnemyLog();
+    }
 }
 
 function updateObstacleSpawning(deltaTime)
@@ -294,7 +391,7 @@ function updateObstacleSpawning(deltaTime)
 
     if (obstacleSpawnTimer >= nextObstacleSpawn)
     {
-        createObstacle();
+        spawnObstacle();
 
         obstacleSpawnTimer = 0;
 
