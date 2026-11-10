@@ -14,7 +14,66 @@ const gameOverScreen = document.getElementById("gameOverScreen");
 const startButton = document.getElementById("startButton");
 const pauseButton = document.getElementById("pauseButton");
 const resumeButton = document.getElementById("resumeButton");
-const restartButton = document.getElementById("restartButton");
+
+let gameState = "menu";
+
+function updateGameUI()
+{
+    startScreen.classList.add("hidden");
+    pauseScreen.classList.add("hidden");
+    gameOverScreen.classList.add("hidden");
+
+    if (gameState === "menu")
+    {
+        startScreen.classList.remove("hidden");
+    }
+
+    if (gameState === "paused")
+    {
+        pauseScreen.classList.remove("hidden");
+    }
+
+    if (gameState === "gameOver")
+    {
+        gameOverScreen.classList.remove("hidden");
+    }
+}
+
+startButton.addEventListener("click", function()
+{
+    gameState = "playing";
+
+    previousTime = undefined;
+
+    updateGameUI();
+});
+
+pauseButton.addEventListener("click", function()
+{
+
+    if (gameState !== "playing") return;
+
+    gameState = "paused";
+
+    previousTime = undefined;
+
+    updateGameUI();
+});
+
+resumeButton.addEventListener("click", function()
+{
+    if (gameState !== "paused") return;
+
+    gameState = "playing";
+
+    previousTime = undefined;
+
+    updateGameUI();
+});
+
+const timerElement = document.getElementById("timer");
+
+let survivalTime = 0;
 
 let boatHealth = 100;
 
@@ -190,6 +249,11 @@ function checkCollisions()
 
             obstacles.splice(obstacles.indexOf(obstacle), 1);
 
+            if (boatHealth <= 0) {
+                gameState = "gameOver";
+                updateGameUI();
+            }
+
             break;
         }
     }
@@ -301,13 +365,16 @@ function animate(currentTime)
 
     previousTime = currentTime;
 
-    moveWorld(deltaTime);
+    if (gameState === "playing")
+    {
+        moveWorld(deltaTime);
 
-    moveBoat(deltaTime);
+        moveBoat(deltaTime);
 
-    updateObstacles(deltaTime);
+        updateObstacles(deltaTime);
 
-    checkCollisions();
+        checkCollisions();
+    }
 
     renderer.render(scene, camera);
 }
