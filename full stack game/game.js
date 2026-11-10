@@ -39,7 +39,7 @@ scene.add(directionalLight);
 
 const world = new THREE.Group();
 
-const riverGeometry = new THREE.PlaneGeometry(20, 100);
+const riverGeometry = new THREE.PlaneGeometry(30, 100);
 
 const riverMaterial = new THREE.MeshStandardMaterial({
     color: 0x1565c0,
@@ -52,7 +52,7 @@ river.rotation.x = -Math.PI / 2;
 
 //scene.add(river);
 
-const bankGeometry = new THREE.BoxGeometry(20, 1, 100);
+const bankGeometry = new THREE.BoxGeometry(30, 1, 100);
 
 const bankMaterial = new THREE.MeshStandardMaterial({
     color: 0x228b22
@@ -60,13 +60,13 @@ const bankMaterial = new THREE.MeshStandardMaterial({
 
 const leftBank = new THREE.Mesh(bankGeometry, bankMaterial);
 
-leftBank.position.set(-20, -0.5, 0);
+leftBank.position.set(-30, -0.5, 0);
 
 //scene.add(leftBank);
 
 const rightBank = new THREE.Mesh(bankGeometry, bankMaterial);
 
-rightBank.position.set(20, -0.5, 0);
+rightBank.position.set(30, -0.5, 0);
 
 //scene.add(rightBank);
 
@@ -82,7 +82,7 @@ world.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
 
 const boat = new THREE.Group();
 
-const boatGeometry = new THREE.BoxGeometry(1.8, 0.5, 3.4);
+const boatGeometry = new THREE.BoxGeometry(1.8, 0.6, 3.4);
 
 const boatMaterial = new THREE.MeshStandardMaterial({
     color: 0x8b4513
@@ -96,6 +96,8 @@ const boatBody = new THREE.Mesh(
 boatBody.position.y = 0.35;
 
 boat.add(boatBody);
+
+const boatBox = new THREE.Box3();
 
 boat.userData.startY = boat.position.y;
 boat.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
@@ -126,6 +128,7 @@ function createObstacle()
     obstacle.userData.startRotation = obstacle.rotation.z;
     obstacle.userData.startY = obstacle.position.y;
     obstacle.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
+    obstacle.userData.boundingBox = new THREE.Box3();
 
     scene.add(obstacle);
 
@@ -133,7 +136,6 @@ function createObstacle()
 }
 
 createObstacle();
-
 
 function updateObstacles(deltaTime)
 {
@@ -158,8 +160,29 @@ function updateObstacles(deltaTime)
     }
 }
 
+function checkCollisions()
+{
+    boatBox.setFromObject(boat);
 
+    for (let obstacle of obstacles)
+    {
+        obstacle.userData.boundingBox.setFromObject(obstacle);
 
+        if (boatBox.intersectsBox(obstacle.userData.boundingBox))
+        {
+            boatHealth -= 20;
+
+            console.log("Boat hit!");
+            console.log("Health:", boatHealth);
+
+            scene.remove(obstacle);
+
+            obstacles.splice(obstacles.indexOf(obstacle), 1);
+
+            break;
+        }
+    }
+}
 
 const mouse = new THREE.Vector2();
 
@@ -263,6 +286,8 @@ function animate(currentTime)
     moveBoat(deltaTime);
 
     updateObstacles(deltaTime);
+
+    checkCollisions();
 
     renderer.render(scene, camera);
 }
