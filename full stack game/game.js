@@ -7,6 +7,15 @@ if (!loggedIn) {
     window.location.href = "login.html";
 }
 
+const startScreen = document.getElementById("startScreen");
+const pauseScreen = document.getElementById("pauseScreen");
+const gameOverScreen = document.getElementById("gameOverScreen");
+
+const startButton = document.getElementById("startButton");
+const pauseButton = document.getElementById("pauseButton");
+const resumeButton = document.getElementById("resumeButton");
+const restartButton = document.getElementById("restartButton");
+
 let boatHealth = 100;
 
 const maxHealth = 100;
@@ -135,8 +144,6 @@ function createObstacle()
     obstacles.push(obstacle);
 }
 
-createObstacle();
-
 function updateObstacles(deltaTime)
 {
     for (let i = obstacles.length - 1; i >= 0; i--)
@@ -172,6 +179,10 @@ function checkCollisions()
         {
             boatHealth -= 20;
 
+            boatHealth = Math.max(0, boatHealth);
+
+            updateHealthBar();
+
             console.log("Boat hit!");
             console.log("Health:", boatHealth);
 
@@ -182,6 +193,15 @@ function checkCollisions()
             break;
         }
     }
+}
+
+const healthFill = document.getElementById("healthFill");
+
+function updateHealthBar()
+{
+    const healthPercentage = (boatHealth / maxHealth) * 100;
+
+    healthFill.style.width = healthPercentage + "%";
 }
 
 const mouse = new THREE.Vector2();
@@ -242,7 +262,7 @@ function moveBoat(deltaTime)
 
     boat.userData.phase += 2 * deltaTime;
 
-    boat.position.y = boat.userData.startY + Math.sin(boat.userData.phase) * 0.4;
+    boat.position.y = boat.userData.startY + Math.sin(boat.userData.phase) * 0.3;
 }
 
 function moveWorld(deltaTime) {

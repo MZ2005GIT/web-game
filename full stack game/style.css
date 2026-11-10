@@ -1,0 +1,105 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
+/* Game HUD */
+
+#gameHUD {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    color: white;
+    z-index: 2;
+}
+
+#healthContainer {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px;
+    border-radius: 8px;
+    width: 180px;
+}
+
+#healthBar {
+    width: 100%;
+    height: 12px;
+    background: #555;
+    border-radius: 10px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+#healthFill {
+    width: 100%;
+    height: 100%;
+    background: #32cd32;
+    transition: width 0.2s;
+}
+
+#timer {
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px black;
+}
+
+/* Buttons */
+
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+
+    background: #1565c0;
+    color: white;
+
+    font-size: 16px;
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0d47a1;
+}
+
+/* Overlay screens */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+
+    z-index: 5;
+}
+
+.overlay h1 {
+    font-size: 48px;
+}
+
+.overlay p {
+    font-size: 20px;
+}
+
+.hidden {
+    display: none !important;
+}

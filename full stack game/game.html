@@ -7,7 +7,7 @@
 
     <title>My Game</title>
 
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
 
     <script type="importmap">
 			{
@@ -20,8 +20,48 @@
 </head>
 
 <body>
-    <button id="exitButton">Exit</button>
-    <button id="startButton">Start</button>
+    <div id="gameHUD">
+
+        <div id="healthContainer">
+            <span>Health</span>
+            <div id="healthBar">
+                <div id="healthFill"></div>
+            </div>
+        </div>
+
+        <div id="timer">00:00</div>
+
+        <button id="pauseButton">Pause</button>
+
+    </div>
+
+    <div id="startScreen" class="overlay">
+
+        <h1>River Survival</h1>
+
+        <p>Survive as long as you can!</p>
+
+        <button id="startButton">Start Game</button>
+
+    </div>
+
+    <div id="pauseScreen" class="overlay hidden">
+
+        <h1>Paused</h1>
+
+        <button id="resumeButton">Resume</button>
+
+    </div>
+
+    <div id="gameOverScreen" class="overlay hidden">
+
+        <h1>Game Over</h1>
+
+        <p>Survival Time: <span id="finalTime">00:00</span></p>
+
+        <button id="restartButton">Play Again</button>
+
+    </div>
     
     <script type="module" src="game.js"></script>
 </body>
