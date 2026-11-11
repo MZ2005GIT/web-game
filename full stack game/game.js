@@ -54,7 +54,37 @@ let nextObstacleSpawn = THREE.MathUtils.randFloat(1.5, 3.5);
 
 let obstacles = [];
 
+let enemyProjectiles = [];
+
+let playerProjectiles = [];
+
 const timerElement = document.getElementById("timer");
+
+function disposeObject(object)
+{
+    object.traverse((child) =>
+    {
+        if (child.geometry)
+        {
+            child.geometry.dispose();
+        }
+
+        if (child.material)
+        {
+            if (Array.isArray(child.material))
+            {
+                child.material.forEach(material =>
+                {
+                    material.dispose();
+                });
+            }
+            else
+            {
+                child.material.dispose();
+            }
+        }
+    });
+}
 
 function updateGameUI()
 {
@@ -155,9 +185,17 @@ async function endGame()
 
     for (let obstacle of obstacles) {
         scene.remove(obstacle);
+        disposeObject(obstacle);
+    }
+
+    for (let projectile of enemyProjectiles) {
+        scene.remove(projectile);
+        disposeObject(projectile);
     }
 
     obstacles = [];
+
+    enemyProjectiles = [];
 
     updateGameUI();
 
@@ -261,6 +299,27 @@ boat.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
 
 scene.add(boat);
 
+const cannonGeometry = new THREE.CylinderGeometry(
+    0.2, 0.3, 1.5, 16
+);
+
+const cannonMaterial = new THREE.MeshStandardMaterial({
+    color: 0x555555,
+    metalness: 0.7,
+    roughness: 0.3
+});
+
+const cannon = new THREE.Group();
+
+cannon.position.set(0, 1.2, -0.3);
+
+const cannonBarrel = new THREE.Mesh(cannonGeometry,cannonMaterial);
+
+cannonBarrel.rotation.x = -Math.PI / 2;
+
+cannon.add(cannonBarrel);
+boat.add(cannon);
+
 function createEnemy()
 {
     const enemy = new THREE.Group();
@@ -313,6 +372,11 @@ function createEnemy()
 
     enemy.add(rightArm);
 
+    enemy.traverse((child) =>
+    {
+        child.userData.enemyParent = enemy;
+    });
+
     return enemy;
 }
 
@@ -352,23 +416,152 @@ function createEnemyLog()
 
     const enemy = createEnemy();
 
+    enemy.userData.log = log;
+
+    enemy.userData.health = 50;
+
     log.userData.hasEnemy = true;
 
     log.userData.enemy = enemy;
-
-    log.userData.health = 50;
 
     log.userData.shootTimer = 0;
     
     log.userData.shootInterval = 2;
 
-    enemy.position.y = 1.5;
-
     log.add(enemy);
+    
+    enemy.position = (0, 1.5, 0);
 
     enemy.rotation.z = -log.rotation.z;
 
     return log;
+}
+
+function createEnemyProjectile(log)
+{
+    const geometry = new THREE.SphereGeometry(0.2, 8, 8);
+
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xff0000,
+        emissive: 0xff0000
+    });
+
+    const projectile = new THREE.Mesh(geometry, material);
+
+    // set enemy position as projectile position
+    log.userData.enemy.getWorldPosition(projectile.position);
+
+    projectile.position.y += 1;
+
+    const direction = new THREE.Vector3();
+
+    direction.subVectors(boat.position, projectile.position).normalize();
+
+    projectile.userData.direction = direction;
+    projectile.userData.speed = 12;
+    projectile.userData.boundingBox = new THREE.Box3();
+
+    scene.add(projectile);
+
+    enemyProjectiles.push(projectile);
+}
+
+function fireCannonball(targetPoint)
+{
+    const geometry = new THREE.SphereGeometry(0.2, 12, 12);
+
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x222222,
+        metalness: 0.8,
+        roughness: 0.3
+    });
+
+    const cannonball = new THREE.Mesh(geometry, material);
+
+    // Get the cannon's 0 0 -0.9 front in world coordinates
+    const muzzlePosition = cannon.localToWorld(
+        new THREE.Vector3(0, 0, -0.9)
+    );
+
+    cannonball.position.copy(muzzlePosition);
+
+    // Calculate direction toward the enemy
+    const direction = new THREE.Vector3()
+        .subVectors(targetPoint, muzzlePosition)
+        .normalize();
+
+    cannonball.userData.direction = direction;
+    cannonball.userData.speed = 20;
+
+    scene.add(cannonball);
+
+    playerProjectiles.push(cannonball);
+}
+
+function checkProjectileCollision(projectile) 
+{
+    projectile.userData.boundingBox.setFromObject(projectile);
+
+    boatBox.setFromObject(boat);
+
+    if (projectile.userData.boundingBox.intersectsBox(boatBox))
+    {
+        boatHealth -= 10;
+
+        boatHealth = Math.max(boatHealth, 0);
+
+        updateHealthBar();
+
+        disposeObject(projectile);
+        scene.remove(projectile);
+        enemyProjectiles.splice(i, 1);
+
+        if (boatHealth <= 0)
+        {
+            endGame();
+        }
+    }
+}
+
+function updateEnemyShooting(deltaTime)
+{
+    for (let obstacle of obstacles)
+    {
+        if (!obstacle.userData.hasEnemy) continue;
+
+        obstacle.userData.shootTimer += deltaTime;
+
+        if (obstacle.userData.shootTimer >= obstacle.userData.shootInterval)
+        {
+            createEnemyProjectile(obstacle);
+
+            obstacle.userData.shootTimer = 0;
+
+            obstacle.userData.shootInterval = THREE.MathUtils.randFloat(2, 3);
+        }
+    }
+}
+
+function updateEnemyProjectiles(deltaTime)
+{
+    for (let i = enemyProjectiles.length - 1; i >= 0; i--)
+    {
+        const projectile = enemyProjectiles[i];
+
+        projectile.position.addScaledVector(
+            projectile.userData.direction,
+            projectile.userData.speed * deltaTime
+        );
+
+        checkProjectileCollision(projectile);
+
+        if (projectile.position.distanceTo(boat.position) > 50)
+        {
+            disposeObject(projectile);
+            scene.remove(projectile);
+            enemyProjectiles.splice(i, 1);
+        }
+    }
 }
 
 function spawnObstacle()
@@ -415,8 +608,8 @@ function updateObstacles(deltaTime)
 
         if (obstacle.position.z > boat.position.z + 20)
         {
+            disposeObject(obstacle);
             scene.remove(obstacle);
-
             obstacles.splice(i, 1);
         }
     }
@@ -441,6 +634,7 @@ function checkCollisions()
             console.log("Boat hit!");
             console.log("Health:", boatHealth);
 
+            disposeObject(obstacle);
             scene.remove(obstacle);
 
             obstacles.splice(obstacles.indexOf(obstacle), 1);
@@ -543,6 +737,25 @@ renderer.domElement.addEventListener("click", function(event) {
 
     raycaster.setFromCamera(mouse, camera);
 
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+    // Store the intersection point
+    const targetPoint = new THREE.Vector3();
+
+    const intersection = raycaster.ray.intersectPlane(plane, targetPoint);
+
+    if (!intersection) return;
+
+    const muzzlePosition = cannon.localToWorld(new THREE.Vector3(0, 0, -0.9));
+
+    const direction = new THREE.Vector3().subVectors(targetPoint, muzzlePosition).normalize();
+
+    cannon.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
+
+    //shoot cannonball
+
+    //check cannon ball collision with enemy
+
 })
 
 let previousTime;
@@ -569,6 +782,10 @@ function animate(currentTime)
         updateObstacleSpawning(deltaTime);
 
         updateObstacles(deltaTime);
+
+        updateEnemyShooting(deltaTime);
+
+        updateEnemyProjectiles(deltaTime);
 
         checkCollisions();
 
