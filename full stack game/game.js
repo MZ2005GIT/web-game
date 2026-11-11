@@ -430,7 +430,7 @@ function createEnemyLog()
 
     log.add(enemy);
     
-    enemy.position = (0, 1.5, 0);
+    enemy.position.set(0, 0, 0.5);
 
     enemy.rotation.z = -log.rotation.z;
 
