@@ -52,7 +52,7 @@ let obstacleSpawnTimer = 0;
 
 let nextObstacleSpawn = THREE.MathUtils.randFloat(1.5, 3.5);
 
-let obstacles = [];
+let logs = [];
 
 let enemyProjectiles = [];
 
@@ -183,9 +183,9 @@ async function endGame()
 
     finalTimeElement.textContent = Math.floor(survivalTime);
 
-    for (let obstacle of obstacles) {
-        scene.remove(obstacle);
-        disposeObject(obstacle);
+    for (let log of logs) {
+        scene.remove(log);
+        disposeObject(log);
     }
 
     for (let projectile of enemyProjectiles) {
@@ -193,7 +193,7 @@ async function endGame()
         disposeObject(projectile);
     }
 
-    obstacles = [];
+    logs = [];
 
     enemyProjectiles = [];
 
@@ -290,10 +290,13 @@ boatBody.position.y = 0.35;
 
 boat.add(boatBody);
 
-const boatBox = new THREE.Box3();
-
 boat.userData.startY = boat.position.y;
 boat.userData.phase = THREE.MathUtils.randFloat(0, Math.PI * 2);
+boat.userData.boundingBox = new THREE.Box3();
+boat.userData.shootTimer = 0;
+boat.userData.shootInterval = 1;
+
+const boatBox = boat.userData.boundingBox;
 
 //boat.add(camera);
 
@@ -405,7 +408,7 @@ function createLog()
 
     scene.add(log);
 
-    obstacles.push(log);
+    logs.push(log);
 
     return log;
 }
@@ -466,7 +469,7 @@ function createEnemyProjectile(log)
     enemyProjectiles.push(projectile);
 }
 
-function fireCannonball(targetPoint)
+function fireCannonball(direction, muzzlePosition)
 {
     const geometry = new THREE.SphereGeometry(0.2, 12, 12);
 
@@ -478,32 +481,43 @@ function fireCannonball(targetPoint)
 
     const cannonball = new THREE.Mesh(geometry, material);
 
-    // Get the cannon's 0 0 -0.9 front in world coordinates
-    const muzzlePosition = cannon.localToWorld(
-        new THREE.Vector3(0, 0, -0.9)
-    );
-
     cannonball.position.copy(muzzlePosition);
-
-    // Calculate direction toward the enemy
-    const direction = new THREE.Vector3()
-        .subVectors(targetPoint, muzzlePosition)
-        .normalize();
 
     cannonball.userData.direction = direction;
     cannonball.userData.speed = 20;
+    cannonball.userData.boundingBox = new THREE.Box3();
 
     scene.add(cannonball);
 
     playerProjectiles.push(cannonball);
 }
 
-function checkProjectileCollision(projectile) 
+function updateCannonballs(deltaTime)
 {
-    projectile.userData.boundingBox.setFromObject(projectile);
+    for (let i = playerProjectiles.length - 1; i >= 0; i--)
+    {
+        const projectile = playerProjectiles[i];
 
-    boatBox.setFromObject(boat);
+        projectile.position.addScaledVector(
+            projectile.userData.direction,
+            projectile.userData.speed * deltaTime
+        );
 
+        if (projectile.position.distanceTo(boat.position) > 50)
+        {
+            disposeObject(projectile);
+            scene.remove(projectile);
+            playerProjectiles.splice(i, 1);
+
+            continue;
+        }
+
+        checkPlayerProjectileCollision(projectile, i);
+    }
+}
+
+function checkEnemyProjectileCollision(projectile, position) 
+{
     if (projectile.userData.boundingBox.intersectsBox(boatBox))
     {
         boatHealth -= 10;
@@ -514,7 +528,7 @@ function checkProjectileCollision(projectile)
 
         disposeObject(projectile);
         scene.remove(projectile);
-        enemyProjectiles.splice(i, 1);
+        enemyProjectiles.splice(position, 1);
 
         if (boatHealth <= 0)
         {
@@ -523,21 +537,48 @@ function checkProjectileCollision(projectile)
     }
 }
 
+function checkPlayerProjectileCollision(projectile, position) 
+{
+    for (let log of logs)
+    {
+        if (!log.userData.hasEnemy) continue;
+
+        const enemy = log.userData.enemy;
+
+        const logBox = log.userData.boundingBox;
+
+        if (projectile.userData.boundingBox.intersectsBox(logBox)) {
+            console.log("enemy hit");
+            disposeObject(projectile);
+            scene.remove(projectile);
+            playerProjectiles.splice(position, 1);
+
+            log.remove(enemy);
+            disposeObject(enemy);
+            scene.remove(enemy);
+            log.userData.enemy = null;
+            log.userData.hasEnemy = false;
+
+            break;
+        }
+    }
+}
+
 function updateEnemyShooting(deltaTime)
 {
-    for (let obstacle of obstacles)
+    for (let log of logs)
     {
-        if (!obstacle.userData.hasEnemy) continue;
+        if (!log.userData.hasEnemy) continue;
 
-        obstacle.userData.shootTimer += deltaTime;
+        log.userData.shootTimer += deltaTime;
 
-        if (obstacle.userData.shootTimer >= obstacle.userData.shootInterval)
+        if (log.userData.shootTimer >= log.userData.shootInterval)
         {
-            createEnemyProjectile(obstacle);
+            createEnemyProjectile(log);
 
-            obstacle.userData.shootTimer = 0;
+            log.userData.shootTimer = 0;
 
-            obstacle.userData.shootInterval = THREE.MathUtils.randFloat(2, 3);
+            log.userData.shootInterval = THREE.MathUtils.randFloat(2, 3);
         }
     }
 }
@@ -553,7 +594,7 @@ function updateEnemyProjectiles(deltaTime)
             projectile.userData.speed * deltaTime
         );
 
-        checkProjectileCollision(projectile);
+        checkEnemyProjectileCollision(projectile, i);
 
         if (projectile.position.distanceTo(boat.position) > 50)
         {
@@ -594,36 +635,32 @@ function updateObstacleSpawning(deltaTime)
 
 function updateObstacles(deltaTime)
 {
-    for (let i = obstacles.length - 1; i >= 0; i--)
+    for (let i = logs.length - 1; i >= 0; i--)
     {
-        const obstacle = obstacles[i];
+        const log = logs[i];
 
-        obstacle.position.z += 5 * deltaTime;
+        log.position.z += 5 * deltaTime;
 
-        obstacle.userData.phase += 2 * deltaTime;
+        log.userData.phase += 2 * deltaTime;
 
-        obstacle.position.y = obstacle.userData.startY + Math.sin(obstacle.userData.phase) * 0.3;
+        log.position.y = log.userData.startY + Math.sin(log.userData.phase) * 0.3;
 
-        obstacle.rotation.z = obstacle.userData.startRotation + Math.sin(obstacle.userData.phase) * 0.2;
+        log.rotation.z = log.userData.startRotation + Math.sin(log.userData.phase) * 0.2;
 
-        if (obstacle.position.z > boat.position.z + 20)
+        if (log.position.z > boat.position.z + 20)
         {
-            disposeObject(obstacle);
-            scene.remove(obstacle);
-            obstacles.splice(i, 1);
+            disposeObject(log);
+            scene.remove(log);
+            logs.splice(i, 1);
         }
     }
 }
 
-function checkCollisions()
+function checkBoatCollisions()
 {
-    boatBox.setFromObject(boat);
-
-    for (let obstacle of obstacles)
+    for (let log of logs)
     {
-        obstacle.userData.boundingBox.setFromObject(obstacle);
-
-        if (boatBox.intersectsBox(obstacle.userData.boundingBox))
+        if (boatBox.intersectsBox(log.userData.boundingBox))
         {
             boatHealth -= 20;
 
@@ -634,10 +671,10 @@ function checkCollisions()
             console.log("Boat hit!");
             console.log("Health:", boatHealth);
 
-            disposeObject(obstacle);
-            scene.remove(obstacle);
+            disposeObject(log);
+            scene.remove(log);
 
-            obstacles.splice(obstacles.indexOf(obstacle), 1);
+            logs.splice(logs.indexOf(log), 1);
 
             if (boatHealth <= 0) {
                 endGame();
@@ -727,36 +764,76 @@ function moveWorld(deltaTime) {
 }
 
 renderer.domElement.addEventListener("click", function(event) {
-    const rect = renderer.domElement.getBoundingClientRect();
 
-    let mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    let mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    if (gameState !== "playing") return;
 
-    mouse.x = mouseX;
-    mouse.y = mouseY;
+    if (boat.userData.shootTimer >= boat.userData.shootInterval)
+    {
+        const rect = renderer.domElement.getBoundingClientRect();
 
-    raycaster.setFromCamera(mouse, camera);
+        let mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        let mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        mouse.x = mouseX;
+        mouse.y = mouseY;
 
-    // Store the intersection point
-    const targetPoint = new THREE.Vector3();
+        raycaster.setFromCamera(mouse, camera);
 
-    const intersection = raycaster.ray.intersectPlane(plane, targetPoint);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-    if (!intersection) return;
+        // Store the intersection point
+        const targetPoint = new THREE.Vector3();
 
-    const muzzlePosition = cannon.localToWorld(new THREE.Vector3(0, 0, -0.9));
+        const intersection = raycaster.ray.intersectPlane(plane, targetPoint);
 
-    const direction = new THREE.Vector3().subVectors(targetPoint, muzzlePosition).normalize();
+        if (!intersection) return;
 
-    cannon.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
+        targetPoint.y = 0.1;
 
-    //shoot cannonball
+        const muzzlePosition = cannon.localToWorld(new THREE.Vector3(0, 0, -0.9));
 
-    //check cannon ball collision with enemy
+        const direction = new THREE.Vector3().subVectors(targetPoint, muzzlePosition).normalize();
 
+        cannon.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
+
+        fireCannonball(direction, muzzlePosition);
+
+        boat.userData.shootTimer = 0;
+    }
 })
+
+window.addEventListener("resize", onWindowResize);
+
+function onWindowResize()
+{
+    // Update camera aspect ratio
+    camera.aspect = window.innerWidth / window.innerHeight;
+
+    // Recalculate camera projection
+    camera.updateProjectionMatrix();
+
+    // Resize renderer
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function updateBoundingBoxes() {
+
+    scene.updateMatrixWorld(true);
+
+    boat.userData.boundingBox.setFromObject(boat);
+
+    for (let log of logs) {
+        log.userData.boundingBox.setFromObject(log);
+    }
+
+    for (let projectile of enemyProjectiles) {
+        projectile.userData.boundingBox.setFromObject(projectile);
+    }
+
+    for (let projectile of playerProjectiles) {
+        projectile.userData.boundingBox.setFromObject(projectile);
+    }
+}
 
 let previousTime;
 
@@ -779,6 +856,8 @@ function animate(currentTime)
 
         moveBoat(deltaTime);
 
+        updateBoundingBoxes();
+
         updateObstacleSpawning(deltaTime);
 
         updateObstacles(deltaTime);
@@ -787,9 +866,13 @@ function animate(currentTime)
 
         updateEnemyProjectiles(deltaTime);
 
-        checkCollisions();
+        updateCannonballs(deltaTime);
+
+        checkBoatCollisions();
 
         survivalTime += deltaTime;
+
+        boat.userData.shootTimer += deltaTime;
 
         timerElement.textContent = Math.floor(survivalTime);
     }
